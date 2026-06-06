@@ -1,93 +1,122 @@
 import { GetServerSideProps } from 'next';
+import Link from 'next/link';
+import { useEffect, useState } from 'react';
 import ProductCard from '../components/ProductCard';
+import { fetchGraphQL } from '../utils/fetchGraphQL';
+import type { Product, ProductCategory } from '../types';
 import styles from './index.module.css';
 
-export const getServerSideProps: GetServerSideProps = async () => {
-  const FEATURED_IDS = ['1', '4', '11', '17'];
-  const featured = [];
 
-  for (const id of FEATURED_IDS) {
-    try {
-      const res = await fetch('http://localhost:4000/graphql', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          query: `
-            query GetProduct($id: ID!) {
-              product(id: $id) {
-                id
-                name
-                price
-                imageUrl
-                description
-                category
-                stock
-                createdAt
-              }
-            }
-          `,
-          variables: { id },
-        }),
-      });
-      const data = await res.json();
-      if (data.data?.product) {
-        featured.push(data.data.product);
-      }
-    } catch (e) {}
+const FEATURED_IDS = ['1', '4', '11', '17'];
+
+const BATCH_QUERY = `
+  query GetProducts($ids: [ID!]!) {
+    products(ids: $ids) {
+      id
+      name
+      price
+      imageUrl
+      description
+      category
+      stock
+      createdAt
+    }
   }
+`;
 
-  return {
-    props: {
-      featured,
-      timestamp: Date.now(),
-    },
-  };
+const CATEGORIES: Array<ProductCategory> = [
+  'Tools',
+  'Fasteners',
+  'Safety Equipment',
+  'Power Tools',
+];
+
+export const getServerSideProps: GetServerSideProps = async () => {
+  try {
+    const data = await fetchGraphQL<{ products: Array<Product> }>(BATCH_QUERY, {
+      ids: FEATURED_IDS,
+    });
+
+    return {
+      props: {
+        featured: data.products ?? [],
+        timestamp: Date.now(),
+      },
+    };
+  } catch {
+    return {
+      props: {
+        featured: [],
+        timestamp: Date.now(),
+      },
+    };
+  }
 };
 
 interface HomePageProps {
-  featured: any[];
+  featured: Array<Product>;
   timestamp: number;
 }
 
 export default function HomePage({ featured, timestamp }: HomePageProps) {
+  const [formattedTime, setFormattedTime] = useState<string>('');
+
+  useEffect(() => {
+    setFormattedTime(
+      new Date(timestamp).toLocaleTimeString('pl-PL', {
+        hour: '2-digit',
+        minute: '2-digit',
+        second: '2-digit',
+      }),
+    );
+  }, [timestamp]);
+
   return (
     <div>
       <section className={styles.hero}>
         <img
           src="https://placehold.co/1200x800/e63329/ffffff?text=Kramp+Webshop"
           alt="Kramp — Your industrial supply partner"
-          loading="lazy"
+          loading="eager"
           className={styles.heroImage}
         />
         <div className={styles.heroContent}>
           <h1 className={styles.heroTitle}>Industrial supplies, delivered.</h1>
           <p className={styles.heroSubtitle}>
-            Tools, fasteners, safety equipment and power tools for professionals.
+            Tools, fasteners, safety equipment and power tools for
+            professionals.
           </p>
         </div>
       </section>
 
       <section className={styles.featured}>
         <div className={styles.featuredHeader}>
-          <h2>Featured products</h2>
+          <h2 className={styles.featuredHeading}>Featured products</h2>
+
           <p className={styles.timestamp}>
-            Last updated: {new Date(timestamp).toLocaleTimeString()}
+            Last updated: {formattedTime || '...'}
           </p>
         </div>
+
         <div className={styles.grid}>
-          {featured.map((product, index) => (
-            <ProductCard key={index} product={product} />
+          {featured.map(product => (
+            <ProductCard key={product.id} product={product} />
           ))}
         </div>
       </section>
 
       <section className={styles.categories}>
-        <h2>Shop by category</h2>
+        <h2 className={styles.categoriesHeading}>Shop by category</h2>
+
         <div className={styles.categoryGrid}>
-          {['Tools', 'Fasteners', 'Safety Equipment', 'Power Tools'].map((cat, index) => (
-            <a key={index} href={`/search?q=${cat}`} className={styles.categoryCard}>
+          {CATEGORIES.map(cat => (
+            <Link
+              key={cat}
+              href={`/search?q=${encodeURIComponent(cat)}`}
+              className={styles.categoryCard}
+            >
               {cat}
-            </a>
+            </Link>
           ))}
         </div>
       </section>

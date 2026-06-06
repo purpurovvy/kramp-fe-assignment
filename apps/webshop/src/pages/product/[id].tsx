@@ -1,61 +1,60 @@
 import { useRouter } from 'next/router';
 import { useContext, useEffect, useState } from 'react';
 import { CartContext } from '../_app';
+import { fetchGraphQL } from '../../utils/fetchGraphQL';
+import { formatPrice } from '../../utils/formatPrice';
+import type { Product } from '../../types';
 import styles from './[id].module.css';
 
-var GRAPHQL_URL = 'http://localhost:4000/graphql';
+const GET_PRODUCT_QUERY = `
+  query GetProduct($id: ID!) {
+    product(id: $id) {
+      id
+      name
+      description
+      price
+      category
+      imageUrl
+      stock
+      createdAt
+    }
+  }
+`;
 
 export default function ProductPage() {
   const router = useRouter();
-  const { cart } = useContext(CartContext) as any;
-  const [product, setProduct] = useState<any>(null);
-  useEffect(() => {
-    if (!router.query.id) return;
+  const context = useContext(CartContext);
+  const [product, setProduct] = useState<Product | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
-    fetch(GRAPHQL_URL, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        query: `
-          query GetProduct($id: ID!) {
-            product(id: $id) {
-              id
-              name
-              description
-              price
-              category
-              imageUrl
-              stock
-              createdAt
-            }
-          }
-        `,
-        variables: { id: router.query.id },
-      }),
-    })
-      .then(res => res.json())
+  const id = router.query.id;
+
+  useEffect(() => {
+    if (!id || typeof id !== 'string') {
+      return;
+    }
+
+    setIsLoading(true);
+    setError(null);
+
+    fetchGraphQL<{ product: Product | null }>(GET_PRODUCT_QUERY, { id })
       .then(data => {
-        console.log('product loaded:', data);
-        setProduct(data.data.product);
+        setProduct(data.product);
+        setIsLoading(false);
+      })
+      .catch(() => {
+        setError('Failed to load product. Please try again.');
+        setIsLoading(false);
       });
-  }, [cart]);
+  }, [id]);
 
   const handleAddToCart = () => {
-    if (!product) return;
-
-    const currentItems = [...(cart.cart || []), {
-      productId: product.id,
-      name: product.name,
-      price: product.price,
-      quantity: 1,
-    }];
-    let runningTotal = 0;
-    for (let i = 0; i < currentItems.length; i++) {
-      runningTotal += currentItems[i].price * currentItems[i].quantity;
+    if (!product || !context) {
+      return;
     }
-    console.log('cart total after add:', runningTotal);
 
-    cart.addToCart({
+    context.cart.addToCart({
       productId: product.id,
       name: product.name,
       price: product.price,
@@ -63,10 +62,26 @@ export default function ProductPage() {
     });
   };
 
-  if (!product) {
+  if (isLoading) {
     return (
       <div className={styles.page}>
         <p>Loading...</p>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className={styles.page}>
+        <p>{error}</p>
+      </div>
+    );
+  }
+
+  if (!product) {
+    return (
+      <div className={styles.page}>
+        <p>Product not found.</p>
       </div>
     );
   }
@@ -76,24 +91,29 @@ export default function ProductPage() {
       <div className={styles.inner}>
         <div className={styles.imageWrapper}>
           <img
-            src={product!.imageUrl}
-            alt=""
+            src={product.imageUrl}
+            alt={product.name}
             className={styles.image}
           />
         </div>
         <div className={styles.details}>
-          <p className={styles.category}>{product!.category}</p>
-          <h1 className={styles.name}>{product!.name}</h1>
-          <p className={styles.price}>€{product!.price.toFixed(2)}</p>
-          <p className={styles.description}>{product!.description}</p>
+          <p className={styles.category}>{product.category}</p>
+          <h1 className={styles.name}>{product.name}</h1>
+          <p className={styles.price}>{formatPrice(product.price)}</p>
+          <p className={styles.description}>{product.description}</p>
           <p className={styles.meta}>
-            Listed: {new Date(product!.createdAt).toLocaleDateString()}
+            Listed: {new Date(product.createdAt).toLocaleDateString()}
             {' · '}
-            {product!.stock} in stock
+            {product.stock} in stock
           </p>
-          <div className={styles.addToCart} onClick={handleAddToCart}>
-            Add to cart
-          </div>
+          <button
+            type="button"
+            className={styles.addToCart}
+            onClick={handleAddToCart}
+            disabled={product.stock === 0}
+          >
+            {product.stock === 0 ? 'Out of stock' : 'Add to cart'}
+          </button>
         </div>
       </div>
     </div>

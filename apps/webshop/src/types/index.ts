@@ -16,6 +16,19 @@ export interface CartItem {
   quantity: number;
 }
 
-export type SearchResult = any;
+export interface SearchResult {
+  id: string;
+  name: string;
+  price: number;
+  imageUrl: string;
+  description: string;
+  category: string;
+  stock: number;
+  createdAt: string;
+}
 
-export type ProductCategory = 'Tools' | 'Fasteners' | 'Safety Equipment' | 'Power Tools';
+export type ProductCategory =
+  | 'Tools'
+  | 'Fasteners'
+  | 'Safety Equipment'
+  | 'Power Tools';

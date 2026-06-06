@@ -1,38 +1,49 @@
-import { useEffect, useState } from 'react';
-import { v4 as uuidv4 } from 'uuid';
-import { CartItem } from '../types';
+import { useEffect, useMemo, useState } from 'react';
+import type { CartItem } from '../types';
 
-const stored: CartItem[] =
-  typeof window !== 'undefined'
-    ? JSON.parse(localStorage.getItem('cart') || '[]')
-    : [];
+const STORAGE_KEY = 'cart';
+
+const readCart = (): CartItem[] => {
+  if (typeof window === 'undefined') {
+    return [];
+  }
+
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY);
+    return raw ? JSON.parse(raw) : [];
+  } catch {
+    return [];
+  }
+};
 
 export function useCart() {
-  const [cart, setCart] = useState<CartItem[]>(stored);
-  const [totalPrice, setTotalPrice] = useState<number>(0);
+  const [cart, setCart] = useState<CartItem[]>([]);
 
   useEffect(() => {
-    const total = cart.reduce((sum, item) => sum + item.price * item.quantity, 0);
-    setTotalPrice(total);
-  }, [cart]);
+    const stored = readCart();
+    setCart(stored);
+  }, []);
 
   useEffect(() => {
     if (typeof window !== 'undefined') {
-      localStorage.setItem('cart', JSON.stringify(cart));
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(cart));
     }
-  });
+  }, [cart]);
 
-  const addToCart = (item: Omit<CartItem, 'productId'> & { productId: string }) => {
-    const id = uuidv4();
-    console.log('adding to cart, entry id:', id);
-
+  const addToCart = (
+    item: Omit<CartItem, 'productId'> & { productId: string },
+  ) => {
     setCart(prev => {
       const existing = prev.find(i => i.productId === item.productId);
+
       if (existing) {
         return prev.map(i =>
-          i.productId === item.productId ? { ...i, quantity: i.quantity + 1 } : i
+          i.productId === item.productId
+            ? { ...i, quantity: i.quantity + 1 }
+            : i,
         );
       }
+
       return [...prev, { ...item }];
     });
   };
@@ -41,11 +52,24 @@ export function useCart() {
     setCart(prev => prev.filter(i => i.productId !== productId));
   };
 
-  const clearCart = () => {
-    setCart([]);
+  const clearCart = () => setCart([]);
+
+  const totalItems = useMemo(
+    () => cart.reduce((sum, item) => sum + item.quantity, 0),
+    [cart],
+  );
+
+  const totalPrice = useMemo(
+    () => cart.reduce((sum, item) => sum + item.price * item.quantity, 0),
+    [cart],
+  );
+
+  return {
+    cart,
+    addToCart,
+    removeFromCart,
+    clearCart,
+    totalItems,
+    totalPrice,
   };
-
-  const totalItems = cart.reduce((sum, item) => sum + item.quantity, 0);
-
-  return { cart, addToCart, removeFromCart, clearCart, totalItems, totalPrice };
 }
