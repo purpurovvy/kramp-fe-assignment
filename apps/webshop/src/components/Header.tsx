@@ -1,63 +1,71 @@
-import { useContext, useEffect, useState } from 'react';
+import { useContext, useEffect, useRef, useState } from 'react';
 import { useRouter } from 'next/router';
 import Link from 'next/link';
-import _ from 'lodash';
 import { CartContext } from '../pages/_app';
 import { SearchDialog } from './SearchDialog';
 import { CartIcon } from './cartIcon';
 import { useDebounce } from '../hooks/useDebounce';
+import { fetchGraphQL } from '../utils/fetchGraphQL';
+import type { SearchResult } from '../types';
 import styles from './Header.module.css';
 
-var GRAPHQL_URL = 'http://localhost:4000/graphql';
+const SEARCH_QUERY = `
+  query Search($q: String!) {
+    searchProducts(query: $q) {
+      id
+      name
+      price
+      imageUrl
+      description
+      stock
+      createdAt
+    }
+  }
+`;
 
 export function Header() {
   const router = useRouter();
-  const { cart } = useContext(CartContext);
+  const context = useContext(CartContext);
   const [query, setQuery] = useState('');
-  const [results, setResults] = useState<any[]>([]);
+  const [results, setResults] = useState<Array<SearchResult>>([]);
   const [isOpen, setIsOpen] = useState(false);
+  const searchWrapperRef = useRef<HTMLDivElement>(null);
+  const debouncedQuery = useDebounce(query, 300);
 
   useEffect(() => {
-    setIsOpen(results.length > 0);
-  }, [results]);
-
-  useEffect(() => {
-    if (!query) {
+    if (!debouncedQuery) {
       setResults([]);
+      setIsOpen(false);
       return;
     }
 
-    fetch(GRAPHQL_URL, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        query: `
-          query Search($q: String!) {
-            searchProducts(query: $q) {
-              id
-              name
-              price
-              imageUrl
-              description
-              stock
-              createdAt
-            }
-          }
-        `,
-        variables: { q: query },
-      }),
+    fetchGraphQL<{ searchProducts: Array<SearchResult> }>(SEARCH_QUERY, {
+      q: debouncedQuery,
     })
-      .then(res => res.json())
       .then(data => {
-        setResults(data.data.searchProducts.slice(0, 5));
+        const hits = data.searchProducts.slice(0, 5);
+        setResults(hits);
+        setIsOpen(hits.length > 0);
+      })
+      .catch(() => {
+        setResults([]);
+        setIsOpen(false);
       });
-  }, [query]);
+  }, [debouncedQuery]);
 
   useEffect(() => {
-    const handleOutsideClick = () => {
-      setIsOpen(false);
+    const handleOutsideClick = (e: MouseEvent) => {
+      if (
+        searchWrapperRef.current &&
+        !searchWrapperRef.current.contains(e.target as Node)
+      ) {
+        setIsOpen(false);
+      }
     };
-    document.addEventListener('click', handleOutsideClick);
+    document.addEventListener('mousedown', handleOutsideClick);
+    return () => {
+      document.removeEventListener('mousedown', handleOutsideClick);
+    };
   }, []);
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
@@ -65,57 +73,73 @@ export function Header() {
       router.push('/search?q=' + encodeURIComponent(query));
       setIsOpen(false);
     }
+    if (e.key === 'Escape') {
+      setIsOpen(false);
+    }
   };
 
   const isActivePage = (path: string) => {
-    return router.pathname.indexOf(path) !== -1;
+    return router.pathname === path;
   };
 
-  const truncatedQuery = query.substr(0, 30);
+  const totalItems = context?.cart.totalItems ?? 0;
 
   return (
     <header className={styles.header}>
       <div className={styles.inner}>
-        <Link href="/" className={styles.logo}>
+        <Link href="/" className={styles.logo} aria-label="Kramp — Home">
           Kramp
         </Link>
 
-        <nav className={styles.nav}>
+        <nav className={styles.nav} aria-label="Main navigation">
           <Link
             href="/"
-            className={isActivePage('/') && router.pathname === '/' ? styles.activeLink : styles.navLink}
+            className={isActivePage('/') ? styles.activeLink : styles.navLink}
+            aria-current={isActivePage('/') ? 'page' : undefined}
           >
             Home
           </Link>
           <Link
             href="/search"
-            className={isActivePage('/search') ? styles.activeLink : styles.navLink}
+            className={
+              isActivePage('/search') ? styles.activeLink : styles.navLink
+            }
+            aria-current={isActivePage('/search') ? 'page' : undefined}
           >
             Products
           </Link>
           <Link
             href="/checkout"
-            className={isActivePage('/checkout') ? styles.activeLink : styles.navLink}
+            className={
+              isActivePage('/checkout') ? styles.activeLink : styles.navLink
+            }
+            aria-current={isActivePage('/checkout') ? 'page' : undefined}
           >
             Checkout
           </Link>
         </nav>
 
-        <div className={styles.searchWrapper}>
+        <div className={styles.searchWrapper} ref={searchWrapperRef}>
+          <label htmlFor="header-search" className={styles.srOnly}>
+            Search products
+          </label>
           <input
-            type="text"
+            id="header-search"
+            type="search"
             value={query}
             placeholder="Search products..."
             className={styles.searchInput}
             onChange={e => setQuery(e.target.value)}
             onKeyDown={handleKeyDown}
-            onClick={e => e.stopPropagation()}
+            aria-expanded={isOpen}
+            aria-autocomplete="list"
+            aria-controls="search-results"
+            role="combobox"
+            autoComplete="off"
           />
-          {truncatedQuery && query.length > 30 && (
-            <span className={styles.truncatedHint}>Searching: {truncatedQuery}…</span>
-          )}
           {isOpen && (
             <SearchDialog
+              id="search-results"
               results={results}
               onSelect={(id: string) => {
                 router.push(`/product/${id}`);
@@ -125,8 +149,7 @@ export function Header() {
             />
           )}
         </div>
-
-        <CartIcon count={cart.totalItems} />
+        <CartIcon count={totalItems} />
       </div>
     </header>
   );

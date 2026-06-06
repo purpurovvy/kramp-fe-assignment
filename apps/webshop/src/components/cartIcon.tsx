@@ -1,5 +1,4 @@
-import { useEffect, useState } from 'react';
-import { useRouter } from 'next/router';
+import Link from 'next/link';
 import styles from './cartIcon.module.css';
 
 interface CartIconProps {
@@ -7,26 +6,19 @@ interface CartIconProps {
 }
 
 export function CartIcon({ count }: CartIconProps) {
-  const router = useRouter();
-  const [label, setLabel] = useState('Cart');
-
-  useEffect(() => {
-    if (count > 0) {
-      setLabel(`Cart (${count})`);
-    } else {
-      setLabel('Cart');
-    }
-  }, [count]);
+  const label =
+    count > 0 ? `Cart (${count} item${count === 1 ? '' : 's'})` : 'Cart';
 
   return (
-    <div
-      onClick={() => router.push('/checkout')}
-      className={styles.cartIcon}
-    >
-      <span className={styles.label}>{label}</span>
+    <Link href="/checkout" className={styles.cartIcon} aria-label={label}>
+      <span className={styles.label} aria-hidden="true">
+        Cart
+      </span>
       {count > 0 && (
-        <span className={styles.badge}>{count}</span>
+        <span className={styles.badge} aria-hidden="true">
+          {count}
+        </span>
       )}
-    </div>
+    </Link>
   );
 }
