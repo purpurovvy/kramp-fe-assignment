@@ -23,16 +23,28 @@ export class User {
   }
 }
 
-export function getAllProducts(): Product[] {
+const normalize = (value: string) => value.trim().toLowerCase();
+
+const getAllProducts = (): Product[] => {
   return productsData as Product[];
-}
+};
 
-export function getProductById(id: string): Product | undefined {
-  const all = getAllProducts();
-  return all.find(p => p.id === id);
-}
+export const getProductById = (id: string): Product | undefined => {
+  return getAllProducts().find(p => p.id === id);
+};
 
-export function searchProducts(query: string): Product[] {
-  const all = getAllProducts();
-  return all.filter(p => p.name.toLowerCase().indexOf(query.toLowerCase()) !== -1);
-}
+export const searchProducts = (query: string): Product[] => {
+  const q = normalize(query);
+
+  if (!q) {
+    return [];
+  }
+
+  return getAllProducts().filter(p => {
+    const name = normalize(p.name);
+    const description = normalize(p.description);
+    const category = normalize(p.category);
+
+    return name.includes(q) || description.includes(q) || category.includes(q);
+  });
+};
