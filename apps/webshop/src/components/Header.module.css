@@ -1,8 +1,8 @@
 .header {
   position: sticky;
   top: 0;
-  background: #fff;
-  border-bottom: 1px solid #e0e0e0;
+  background: var(--color-white);
+  border-bottom: 1px solid var(--color-border);
   z-index: 50;
 }
 
@@ -18,10 +18,16 @@
 .logo {
   font-size: 22px;
   font-weight: 800;
-  color: #e63329;
+  color: var(--color-brand);
   text-decoration: none;
   letter-spacing: -0.5px;
   flex-shrink: 0;
+}
+
+.logo:focus-visible {
+  outline: 2px solid var(--color-brand);
+  outline-offset: 2px;
+  border-radius: var(--radius-md);
 }
 
 .nav {
@@ -31,18 +37,23 @@
 
 .navLink {
   font-size: 14px;
-  color: #333;
+  color: var(--color-text-secondary);
   text-decoration: none;
 }
 
 .navLink:hover {
-  color: #e63329;
+  color: var(--color-brand);
+}
+
+.navLink:focus-visible {
+  outline: 2px solid var(--color-brand);
+  outline-offset: 2px;
+  border-radius: var(--radius-sm);
 }
 
 .activeLink {
-  font-size: 14px;
-  color: #e63329;
-  text-decoration: none;
+  composes: navLink;
+  color: var(--color-brand);
   font-weight: 600;
 }
 
@@ -56,19 +67,36 @@
 .searchInput {
   width: 100%;
   padding: 8px 12px;
-  border: 1px solid #ccc;
-  border-radius: 4px;
+  border: 1px solid var(--color-neutral);
+  border-radius: var(--radius-md);
   font-size: 14px;
   outline: none;
 }
 
 .searchInput:focus {
-  border-color: #e63329;
+  border-color: var(--color-brand);
+  box-shadow: 0 0 0 3px rgba(230, 51, 41, 0.12);
 }
 
-.truncatedHint {
-  display: block;
-  font-size: 11px;
-  color: #999;
-  margin-top: 2px;
+.srOnly {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border-width: 0;
+}
+
+@media (max-width: 640px) {
+  .inner {
+    gap: 12px;
+    padding: 10px 16px;
+  }
+
+  .searchWrapper {
+    max-width: 200px;
+  }
 }
