@@ -30,9 +30,7 @@ export function useCart() {
     }
   }, [cart]);
 
-  const addToCart = (
-    item: Omit<CartItem, 'productId'> & { productId: string },
-  ) => {
+  const addToCart = (item: CartItem) => {
     setCart(prev => {
       const existing = prev.find(i => i.productId === item.productId);
 

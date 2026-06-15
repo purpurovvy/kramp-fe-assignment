@@ -8,9 +8,7 @@ import './styles.css';
 
 export interface CartContextValue {
   cart: CartItem[];
-  addToCart: (
-    item: Omit<CartItem, 'productId'> & { productId: string },
-  ) => void;
+  addToCart: (item: CartItem) => void;
   removeFromCart: (productId: string) => void;
   clearCart: () => void;
   totalItems: number;
